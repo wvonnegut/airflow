@@ -3,6 +3,7 @@ from __future__ import print_function
 import logging
 import os
 import subprocess
+import distutils.spawn
 import sys
 from datetime import datetime
 
@@ -332,11 +333,14 @@ def webserver(args):
             'Running the Gunicorn server with {workers} {args.workerclass}'
             'workers on host {args.hostname} and port '
             '{args.port}...'.format(**locals()))
-        sp = subprocess.Popen([
-            'gunicorn', '-w', str(args.workers), '-k', str(args.workerclass),
-            '-t', '120', '-b', args.hostname + ':' + str(args.port),
-            'airflow.www.app:cached_app()'])
-        sp.wait()
+
+        gunicorn = distutils.spawn.find_executable('gunicorn')
+        os.execv(gunicorn, [
+            gunicorn, 'airflow.www.app:cached_app()',
+            '-b', '%s:%d' % (args.hostname, args.port),
+            '-w', str(args.workers),
+            '-k', str(args.workerclass)
+        ])
 
 
 def scheduler(args):
@@ -424,8 +428,9 @@ def flower(args):
     api = ''
     if args.broker_api:
         api = '--broker_api=' + args.broker_api
-    sp = subprocess.Popen(['flower', '-b', broka, port, api])
-    sp.wait()
+
+    flower = distutils.spawn.find_executable('flower')
+    os.execv(flower, [flower, '-b', broka, port, api])
 
 
 def kerberos(args):
