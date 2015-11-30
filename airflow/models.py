@@ -1847,13 +1847,19 @@ class BaseOperator(object):
             dag_id=dag_id,
             include_prior_dates=include_prior_dates)
 
+    def should_run_on(self, execution_date):
+        if self.start_date and (self.start_date > execution_date):
+            return False
+        if self.end_date and (self.end_date <= execution_date):
+            return False
+        return True
+
     @property
     def _www_data(self):
         return {
             'dag_id': self.dag_id,
             'task_type': self.task_type
         }
-
 
 class DagModel(Base):
 
@@ -2055,6 +2061,9 @@ class DAG(object):
     def task_ids(self):
         return [t.task_id for t in self.tasks]
 
+    def tasks_for_date(self, execution_date):
+        return [t for t in self.tasks if t.should_run_on(execution_date)]
+
     @property
     def filepath(self):
         """
@@ -2134,21 +2143,25 @@ class DAG(object):
             .all()
         )
         for run in active_runs:
+            task_ids_for_date = [
+                t.task_id for t in
+                self.tasks_for_date(run.execution_date)
+            ]
+
             logging.info("Checking state for {}".format(run))
             task_instances = session.query(TI).filter(
                 TI.dag_id == run.dag_id,
-                TI.task_id.in_(self.task_ids),
+                TI.task_id.in_(task_ids_for_date),
                 TI.execution_date == run.execution_date,
             ).all()
-            if len(task_instances) == len(self.tasks):
-                task_states = [ti.state for ti in task_instances]
+
+            if len(task_instances) == len(task_ids_for_date):
+
+                task_states = set(ti.state for ti in task_instances)
                 if State.FAILED in task_states:
                     logging.info('Marking run {} failed'.format(run))
                     run.state = State.FAILED
-                elif len(
-                    set(task_states) |
-                    set([State.SUCCESS, State.SKIPPED])
-                ) == 2:
+                elif {State.SUCCESS, State.SKIPPED}.issuperset(task_states):
                     logging.info('Marking run {} successful'.format(run))
                     run.state = State.SUCCESS
                 else:
