@@ -43,3 +43,10 @@ class SubDagOperator(BaseOperator):
         self.subdag.run(
             start_date=ed, end_date=ed, donot_pickle=True,
             executor=self.executor)
+
+    @property
+    def _www_data(self):
+        return dict(
+            super(SubDagOperator, self)._www_data,
+            subdag_id = self.subdag.dag_id
+        )

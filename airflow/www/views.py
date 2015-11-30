@@ -1257,14 +1257,11 @@ class Airflow(BaseView):
         task_instances = {
             ti.task_id: utils.alchemy_to_dict(ti)
             for ti in dag.get_task_instances(session, dttm, dttm)}
-        tasks = {
-            t.task_id: {
-                'dag_id': t.dag_id,
-                'task_type': t.task_type,
-            }
-            for t in dag.tasks}
+
+        tasks = {t.task_id: t._www_data for t in dag.tasks}
         if not tasks:
             flash("No tasks found", "error")
+
         session.commit()
         session.close()
         doc_md = markdown.markdown(dag.doc_md) if hasattr(dag, 'doc_md') else ''

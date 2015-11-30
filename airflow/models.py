@@ -1847,6 +1847,13 @@ class BaseOperator(object):
             dag_id=dag_id,
             include_prior_dates=include_prior_dates)
 
+    @property
+    def _www_data(self):
+        return {
+            'dag_id': self.dag_id,
+            'task_type': self.task_type
+        }
+
 
 class DagModel(Base):
 
